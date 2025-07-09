@@ -22,7 +22,7 @@ class BookRepository extends ServiceEntityRepository
     public function findAllWithPage($nbPage, $limitNbBooks, $orderBy = 'b.title', $direction = 'ASC'): array
     {
         $query = $this->createQueryBuilder('b') // équivaut à SELECT b FROM Book b
-            ->orderBy($orderBy, $direction)
+            //->orderBy($orderBy, $direction)
             ->setFirstResult(($nbPage - 1) * $limitNbBooks)
             // calcul à partir de quel resultat commence "OFFSET"
             // (($nbPage - 1) * $limitNbBooks)

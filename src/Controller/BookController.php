@@ -11,25 +11,37 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
+use OpenApi\Attributes as OA;
+use Nelmio\ApiDocBundle\Attribute\Model;
 
 final class BookController extends AbstractController
 {
     // Requête en GET
 
-    #[Route('/book-test', name: 'app_book')]
-    public function index(): JsonResponse
-    {
-        $maVariable = [
-            'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/BookController.php',
-        ];
+    // #[Route('/book-test', name: 'app_book', methods: ['GET'])]
+    // public function index(): JsonResponse
+    // {
+    //     $maVariable = [
+    //         'message' => 'Welcome to your new controller!',
+    //         'path' => 'src/Controller/BookController.php',
+    //     ];
 
-        // return $this->json($maVariable);
+    //     // return $this->json($maVariable);
 
-        return new JsonResponse($maVariable, Response::HTTP_OK, [], false);
-    }
+    //     return new JsonResponse($maVariable, Response::HTTP_OK, [], false);
+    // }
 
-    #[Route('/booksAll', name: 'app_book_listfull')]
+    #[Route('api/booksAll', name: 'app_book_listfull', methods: ['GET'])]
+    #[OA\Tag(name: 'Read - Lecture des données')]
+    #[OA\Response(
+        response: 200,
+        description: 'Retourne la liste des livres complètes',
+        content: new OA\JsonContent(
+            type: 'array',
+            items: new OA\Items(ref: new Model(type: Book::class, groups: ['full']))
+        )
+    )]
     public function showBooksListFull(SerializerInterface $serializer, EntityManagerInterface $entityManager): JsonResponse
     {
         $booksList = $entityManager->getRepository(Book::class)->findAll();
@@ -43,7 +55,29 @@ final class BookController extends AbstractController
     }
 
 
-    #[Route('/books', name: 'app_book', methods: ['GET'])]
+
+    #[Route('api/books', name: 'app_book', methods: ['GET'])]
+    #[OA\Tag(name: 'Read - Lecture des données')]
+    #[OA\Response(
+        response: 200,
+        description: 'Retourne la liste des livres',
+        content: new OA\JsonContent(
+            type: 'array',
+            items: new OA\Items(ref: new Model(type: Book::class, groups: ['full']))
+        )
+    )]
+    #[OA\Parameter(
+        name: 'page',
+        in: 'query',
+        description: 'Numéro de la page désirée',
+        schema: new OA\Schema(type: 'string')
+    )]
+    #[OA\Parameter(
+        name: 'limit',
+        in: 'query',
+        description: 'Nombre limite de livres affichés par page',
+        schema: new OA\Schema(type: 'string')
+    )]
     public function showBooksList(Request $request, SerializerInterface $serializer, EntityManagerInterface $entityManager): JsonResponse
     {
 
@@ -61,7 +95,17 @@ final class BookController extends AbstractController
     }
 
 
-    #[Route('/books/{id}', name: 'app_book_details', methods: ['GET'])]
+
+    #[Route('api/books/{id}', name: 'app_book_details', methods: ['GET'])]
+    #[OA\Tag(name: 'Read - Lecture des données')]
+    #[OA\Response(
+        response: 200,
+        description: 'Retourne un seul livre',
+        content: new OA\JsonContent(
+            type: 'array',
+            items: new OA\Items(ref: new Model(type: Book::class, groups: ['full']))
+        )
+    )]
     public function showBookDetails(int $id, SerializerInterface $serializer, EntityManagerInterface $entityManager): JsonResponse
     {
         $book = $entityManager->getRepository(Book::class)->find($id);
@@ -77,11 +121,27 @@ final class BookController extends AbstractController
 
     // Requete en POST
 
-    #[Route('/books', name: 'app_add_book', methods: ['POST'])]
-    public function addNewBook(SerializerInterface $serializer, EntityManagerInterface $entityManager, Request $request): JsonResponse
+    #[Route('api/books', name: 'app_add_book', methods: ['POST'])]
+    #[OA\Tag(name: 'Create - Ajout de données')]
+    #[OA\Response(
+        response: 201,
+        description: 'Ajout d\'un livre',
+        content: new OA\JsonContent(ref: new Model(type: Book::class, groups: ['full']))
+    )]
+    #[OA\RequestBody(
+        description: "Données du livre à ajouter",
+        content: new OA\JsonContent(ref: new Model(type: Book::class, groups: ['full']))
+    )]
+    public function addNewBook(ValidatorInterface $validator, SerializerInterface $serializer, EntityManagerInterface $entityManager, Request $request): JsonResponse
     {
 
         $newBook = $serializer->deserialize($request->getContent(), Book::class, 'json');
+
+        $errors = $validator->validate($newBook);
+
+        if ($errors->count() > 0) {
+            return new JsonResponse($serializer->serialize($errors, 'json'), JsonResponse::HTTP_BAD_REQUEST, [], true);
+        }
 
         $entityManager->persist($newBook);
         $entityManager->flush();
@@ -93,7 +153,17 @@ final class BookController extends AbstractController
 
     // Requete en PUT
 
-    #[Route('/books/{id}', name: 'app_edit_book', methods: ['PUT'])]
+    #[Route('api/books/{id}', name: 'app_edit_book', methods: ['PUT'])]
+    #[OA\Tag(name: 'Update - Modification de données')]
+    #[OA\Response(
+        response: 200,
+        description: 'Mise à jour d\'un livre',
+        content: new OA\JsonContent(ref: new Model(type: Book::class, groups: ['full']))
+    )]
+    #[OA\RequestBody(
+        description: "Données du livre à mettre à jour",
+        content: new OA\JsonContent(ref: new Model(type: Book::class, groups: ['full']))
+    )]
     public function editBook(int $id, Book $currentBook, SerializerInterface $serializer, EntityManagerInterface $entityManager, Request $request): JsonResponse
     {
 
@@ -111,7 +181,8 @@ final class BookController extends AbstractController
 
     // Requete en DELETE
 
-    #[Route('/books/{id}', name: 'app_delete_book', methods: ['DELETE'])]
+    #[Route('api/books/{id}', name: 'app_delete_book', methods: ['DELETE'])]
+    #[OA\Tag(name: 'Delete - Suppression de données')]
     public function deleteBook(Book $currentBook, EntityManagerInterface $entityManager): JsonResponse
     {
         $entityManager->remove($currentBook);
